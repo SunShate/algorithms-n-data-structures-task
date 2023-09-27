@@ -52,7 +52,11 @@ func getNearestLarger(in []int) []int {
 		current := in[currentIndex]
 		fmt.Println("Current and head values:", current, head)
 
-		for stack.Count() > 0 && current >= head {
+		if current == head {
+			stack.Pop()
+		}
+
+		for stack.Count() > 0 && current > head {
 			stack.Pop()
 			_, headIndex = stack.Peek()
 			head = in[headIndex]
