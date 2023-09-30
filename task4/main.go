@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"task/collections"
+	"task/tree_search"
 )
 
 type trajectory []int
@@ -49,7 +50,7 @@ func main() {
 
 	for i := 0; i < trajectories; i++ {
 		var Trajectory trajectory
-		fmt.Printf("Write trajectory %d: ", i)
+		fmt.Printf("Write trajectory %d: ", i+1)
 		fmt.Scan(&Trajectory)
 		busTrajectories = append(busTrajectories, Trajectory)
 
@@ -85,4 +86,5 @@ func main() {
 	}
 
 	fmt.Println(graph)
+	fmt.Println("Time to get to the end station", tree_search.BreadthFirstSearch(startStation, endStation, graph))
 }

@@ -23,7 +23,7 @@ func (q *Queue[T]) AddLast(input T) {
 }
 
 func (q *Queue[T]) PollFirst() (T, bool) {
-	if len(q.bucket) == 0 {
+	if q.IsEmpty() {
 		var dummy T
 		return dummy, false
 	}
@@ -32,4 +32,12 @@ func (q *Queue[T]) PollFirst() (T, bool) {
 	q.bucket[0] = zero // Avoid memory leak
 	q.bucket = q.bucket[1:]
 	return value, true
+}
+
+func (q *Queue[T]) IsEmpty() bool {
+	if len(q.bucket) < 1 {
+		return false
+	} else {
+		return true
+	}
 }
