@@ -6,8 +6,16 @@ import (
 	"fmt"
 
 	"task/collections"
-	"task/tree_search"
 )
+
+type PathTransition struct {
+	firstPoint       int
+	secondPoint      int
+	time             int
+	isBackwards      bool
+	trajectoryNumber int
+	isTransfer       bool
+}
 
 type trajectory []int
 
@@ -75,16 +83,57 @@ func main() {
 		fmt.Println(errors.New("This end station not exist"))
 	}
 
-	graph := make(map[int][]int)
+	var graph []PathTransition
+	used := make([]bool, stations)
 
-	// fill the graph with trajectories
-	for _, traj := range busTrajectories {
+	// fill the graph with transition between stations
+	for trajNum, traj := range busTrajectories {
 		for i := 0; i < len(traj)-1; i++ {
-			graph[traj[i]] = append(graph[traj[i]], traj[i+1])
-			graph[traj[i+1]] = append(graph[traj[i+1]], traj[i])
+			if used[traj[i]] {
+				for _, pathTransition := range graph {
+					if traj[i] == pathTransition.secondPoint && trajNum != pathTransition.trajectoryNumber && !pathTransition.isTransfer {
+						if pathTransition.isBackwards {
+							graph = append(graph, PathTransition{pathTransition.secondPoint, pathTransition.firstPoint, 3, !pathTransition.isBackwards, trajNum, true})
+							graph = append(graph, PathTransition{pathTransition.firstPoint, pathTransition.secondPoint, 3, pathTransition.isBackwards, trajNum, true})
+						} else {
+							graph = append(graph, PathTransition{pathTransition.firstPoint, pathTransition.secondPoint, 3, pathTransition.isBackwards, trajNum, true})
+							graph = append(graph, PathTransition{pathTransition.secondPoint, pathTransition.firstPoint, 3, !pathTransition.isBackwards, trajNum, true})
+						}
+					}
+				}
+			}
+			graph = append(graph, PathTransition{firstPoint: traj[i], secondPoint: traj[i+1], time: 1, isBackwards: false, trajectoryNumber: trajNum})
+			graph = append(graph, PathTransition{firstPoint: traj[i+1], secondPoint: traj[i], time: 1, isBackwards: true, trajectoryNumber: trajNum})
+
+			used[traj[i]] = true
+			used[traj[i+1]] = true
+
+			if i == len(traj)-2 {
+				fmt.Println("s")
+			}
+
+			if used[traj[i+1]] && i == len(traj)-2 {
+				for _, pathTransition := range graph {
+					if traj[i+1] == pathTransition.secondPoint && trajNum != pathTransition.trajectoryNumber && !pathTransition.isTransfer {
+						if pathTransition.isBackwards {
+							graph = append(graph, PathTransition{pathTransition.secondPoint, pathTransition.firstPoint, 3, !pathTransition.isBackwards, trajNum, true})
+							graph = append(graph, PathTransition{pathTransition.firstPoint, pathTransition.secondPoint, 3, pathTransition.isBackwards, trajNum, true})
+						} else {
+							graph = append(graph, PathTransition{pathTransition.firstPoint, pathTransition.secondPoint, 3, pathTransition.isBackwards, trajNum, true})
+							graph = append(graph, PathTransition{pathTransition.secondPoint, pathTransition.firstPoint, 3, !pathTransition.isBackwards, trajNum, true})
+						}
+					}
+				}
+			}
 		}
 	}
 
-	fmt.Println(graph)
-	fmt.Println("Time to get to the end station", tree_search.BreadthFirstSearch(startStation, endStation, graph))
+	for _, transition := range graph {
+		if transition.isTransfer {
+			fmt.Println(transition)
+		}
+	}
+	// cost, path := tree_search.BreadthFirstSearch(startStation, endStation, graph)
+	// fmt.Println("Time to get to the end station:", cost)
+	// fmt.Println("Path:", path)
 }

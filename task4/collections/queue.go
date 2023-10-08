@@ -36,8 +36,8 @@ func (q *Queue[T]) PollFirst() (T, bool) {
 
 func (q *Queue[T]) IsEmpty() bool {
 	if len(q.bucket) < 1 {
-		return false
-	} else {
 		return true
+	} else {
+		return false
 	}
 }
