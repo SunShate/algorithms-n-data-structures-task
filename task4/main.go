@@ -4,18 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sort"
 
 	"task/collections"
 )
-
-type PathTransition struct {
-	firstPoint       int
-	secondPoint      int
-	time             int
-	isBackwards      bool
-	trajectoryNumber int
-	isTransfer       bool
-}
 
 type trajectory []int
 
@@ -45,6 +37,49 @@ func (s *trajectory) Scan(state fmt.ScanState, verb rune) error {
 	return nil
 }
 
+type Neighbour struct {
+	Node  int   // neighbour node
+	Buses []int // buses that are going to this stop
+}
+
+var routs map[int][]int
+var path []int
+
+func findNeighbour(neighbours []Neighbour, targetNode int) *Neighbour {
+	for i := range neighbours {
+		if neighbours[i].Node == targetNode {
+			return &neighbours[i]
+		}
+	}
+	return nil
+}
+
+func dfs(graph [][]Neighbour, nodeCur, nodeLast int) {
+	if !contains(path, nodeCur) {
+		path = append(path, nodeCur)
+
+		if nodeCur == nodeLast {
+			routs[len(routs)] = append([]int{}, path...)
+			path = path[:len(path)-1]
+			return
+		}
+
+		for _, val := range graph[nodeCur-1] {
+			dfs(graph, val.Node, nodeLast)
+		}
+		path = path[:len(path)-1]
+	}
+}
+
+func contains(slice []int, element int) bool {
+	for _, val := range slice {
+		if val == element {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	var stations, trajectories, startStation, endStation int
 
@@ -54,13 +89,13 @@ func main() {
 	fmt.Scanln(&trajectories)
 
 	stationsSet := make(collections.Set)
-	var busTrajectories []trajectory
+	var busRoutes []trajectory
 
 	for i := 0; i < trajectories; i++ {
 		var Trajectory trajectory
 		fmt.Printf("Write trajectory %d: ", i+1)
 		fmt.Scan(&Trajectory)
-		busTrajectories = append(busTrajectories, Trajectory)
+		busRoutes = append(busRoutes, Trajectory)
 
 		stationsSet.AddMulti(Trajectory...)
 	}
@@ -83,44 +118,36 @@ func main() {
 		fmt.Println(errors.New("This end station not exist"))
 	}
 
-	var graph []PathTransition
-	used := make([]bool, stations)
+	graph := make([][]Neighbour, 0)
+	for vert := 0; len(graph) == vert; {
+		vert++
+		for r, route := range busRoutes {
+			for c, stop := range route {
+				if stop == vert {
+					if len(graph) < vert {
+						graph = append(graph, []Neighbour{})
+					}
 
-	// fill the graph with transition between stations
-	for trajNum, traj := range busTrajectories {
-		for i := 0; i < len(traj)-1; i++ {
-			if used[traj[i]] {
-				for _, pathTransition := range graph {
-					if traj[i] == pathTransition.secondPoint && trajNum != pathTransition.trajectoryNumber && !pathTransition.isTransfer {
-						if pathTransition.isBackwards {
-							graph = append(graph, PathTransition{pathTransition.secondPoint, pathTransition.firstPoint, 3, !pathTransition.isBackwards, trajNum, true})
-							graph = append(graph, PathTransition{pathTransition.firstPoint, pathTransition.secondPoint, 3, pathTransition.isBackwards, trajNum, true})
-						} else {
-							graph = append(graph, PathTransition{pathTransition.firstPoint, pathTransition.secondPoint, 3, pathTransition.isBackwards, trajNum, true})
-							graph = append(graph, PathTransition{pathTransition.secondPoint, pathTransition.firstPoint, 3, !pathTransition.isBackwards, trajNum, true})
+					if c > 0 { // if not first then search for left neighbour
+						leftNeighbour := findNeighbour(graph[vert-1], route[c-1])
+						if leftNeighbour != nil { // if neighbour from this bus route found then add it's upcomming busses
+							leftNeighbour.Buses = append(leftNeighbour.Buses, r)
+						} else { // if neighbour from this bus route not found
+							graph[vert-1] = append(graph[vert-1], Neighbour{
+								Node:  route[c-1],
+								Buses: []int{r},
+							})
 						}
 					}
-				}
-			}
-			graph = append(graph, PathTransition{firstPoint: traj[i], secondPoint: traj[i+1], time: 1, isBackwards: false, trajectoryNumber: trajNum})
-			graph = append(graph, PathTransition{firstPoint: traj[i+1], secondPoint: traj[i], time: 1, isBackwards: true, trajectoryNumber: trajNum})
-
-			used[traj[i]] = true
-			used[traj[i+1]] = true
-
-			if i == len(traj)-2 {
-				fmt.Println("s")
-			}
-
-			if used[traj[i+1]] && i == len(traj)-2 {
-				for _, pathTransition := range graph {
-					if traj[i+1] == pathTransition.secondPoint && trajNum != pathTransition.trajectoryNumber && !pathTransition.isTransfer {
-						if pathTransition.isBackwards {
-							graph = append(graph, PathTransition{pathTransition.secondPoint, pathTransition.firstPoint, 3, !pathTransition.isBackwards, trajNum, true})
-							graph = append(graph, PathTransition{pathTransition.firstPoint, pathTransition.secondPoint, 3, pathTransition.isBackwards, trajNum, true})
+					if c < len(route)-1 { // if not last then search for right neighbour
+						rightNeighbour := findNeighbour(graph[vert-1], route[c+1])
+						if rightNeighbour != nil {
+							rightNeighbour.Buses = append(rightNeighbour.Buses, r)
 						} else {
-							graph = append(graph, PathTransition{pathTransition.firstPoint, pathTransition.secondPoint, 3, pathTransition.isBackwards, trajNum, true})
-							graph = append(graph, PathTransition{pathTransition.secondPoint, pathTransition.firstPoint, 3, !pathTransition.isBackwards, trajNum, true})
+							graph[vert-1] = append(graph[vert-1], Neighbour{
+								Node:  route[c+1],
+								Buses: []int{r},
+							})
 						}
 					}
 				}
@@ -128,12 +155,103 @@ func main() {
 		}
 	}
 
-	for _, transition := range graph {
-		if transition.isTransfer {
-			fmt.Println(transition)
+	for i, vertexes := range graph {
+		fmt.Println("Neighbour stops for ", i, ":", vertexes)
+	}
+	routs = make(map[int][]int)
+	dfs(graph, startStation, endStation)
+
+	fmt.Println("\nRoutes:")
+	for _, route := range routs {
+		fmt.Println(route)
+	}
+
+	paths := make([][][]int, len(routs))
+	for j, route := range routs {
+		for i := 0; i < len(route)-1; i++ {
+			for _, val := range graph[route[i]-1] {
+				if val.Node == route[i+1] { // if next node in neighbour stops for (route[i] - 1) is node from route then append node incomming busses
+					paths[j] = append(paths[j], val.Buses)
+					break
+				}
+			}
 		}
 	}
-	// cost, path := tree_search.BreadthFirstSearch(startStation, endStation, graph)
-	// fmt.Println("Time to get to the end station:", cost)
-	// fmt.Println("Path:", path)
+
+	fmt.Println("\nBuses:")
+	for _, path := range paths {
+		for _, nodes := range path {
+			fmt.Println(nodes)
+		}
+		fmt.Println()
+	}
+
+	maxTrajLen := make([][]struct {
+		number, length int
+	}, len(paths))
+	for j, path := range paths {
+		i := 0
+		for i < len(path) {
+			maxLen := 1
+			var trajLen []struct {
+				number, length int
+			}
+			for _, busNumber := range path[i] {
+				length := 0
+				for k := i; k < len(path); k++ {
+					if contains(path[k], busNumber) {
+						length++
+					} else {
+						break
+					}
+				}
+				trajLen = append(trajLen, struct {
+					number, length int
+				}{busNumber, length})
+			}
+			sort.Slice(trajLen, func(i, j int) bool {
+				return trajLen[i].length < trajLen[j].length
+			})
+			maxLen = trajLen[len(trajLen)-1].length
+			for _, pr := range trajLen {
+				if pr.length == maxLen {
+					maxTrajLen[j] = append(maxTrajLen[j], pr)
+					break
+				}
+			}
+			i += maxLen
+		}
+	}
+
+	for i, rout := range maxTrajLen {
+		fmt.Printf("Route № %d\n", i)
+		for _, pr := range rout {
+			fmt.Printf("TrajNum: %d \t Length: %d\n", pr.number, pr.length)
+		}
+	}
+
+	weights := make([]int, len(maxTrajLen))
+	for i, rout := range maxTrajLen {
+		ribs := 0
+		transfers := len(rout) - 1
+		for _, pr := range rout {
+			ribs += pr.length
+		}
+		weight := ribs + 3*transfers
+		weights[i] = weight
+		fmt.Printf("Route № %d Time: %d\n", i, weight)
+	}
+
+	ind := 0
+	for i, w := range weights {
+		if w < weights[ind] {
+			ind = i
+		}
+	}
+
+	fmt.Println("\nAnswer:")
+	for _, pr := range maxTrajLen[ind] {
+		fmt.Printf("Bus number: %d \t Stops count: %d\n", pr.number, pr.length)
+	}
+	fmt.Println()
 }
