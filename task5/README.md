@@ -1,0 +1,2 @@
+#
+**N** gray and **M** white mice sit in a circle. The cat walks in a circle clockwise and eats every **S** mouse. For the first time, counting starts with the gray mouse. Create an algorithm that determines the order in which the mice sat if after some time there are **K** gray and **L** white mice left.
